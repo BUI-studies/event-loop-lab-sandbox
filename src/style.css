@@ -1,0 +1,312 @@
+/* ============================================================ tokens */
+
+:root {
+  --ground: #0E1524;
+  --panel: #151E31;
+  --panel-2: #1B2740;
+  --line: #2A3A5C;
+  --ink: #E8EDF7;
+  --ink-dim: #8296B8;
+
+  /* One colour per lane. The legend, the phase bar, the panels and the
+     trace all read from these, so a lane is recognisable anywhere. */
+  --task: #F2A63B;
+  --micro: #A78BFA;
+  --webapi: #38BDF8;
+  --heapc: #5EEAD4;
+  --stack: #F27272;
+  --ok: #6EE7A8;
+
+  --font-ui: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ============================================================ base */
+
+* { box-sizing: border-box }
+
+html, body { margin: 0; height: 100% }
+
+body {
+  background:
+    linear-gradient(transparent 95%, rgba(42, 58, 92, .35) 95%) 0 0 / 100% 28px,
+    var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+}
+
+.wrap { max-width: 1500px; margin: 0 auto; padding: 22px 20px 60px }
+
+/* ============================================================ header */
+
+header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 6px }
+h1 { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin: 0 }
+header p { margin: 0; color: var(--ink-dim); max-width: 62ch; line-height: 1.5; flex: 1 1 340px }
+
+.langs { display: flex; gap: 6px; flex: none }
+.langs button { padding: 5px 12px; font-size: 12px }
+.langs button[aria-pressed=true] {
+  background: var(--webapi);
+  color: #05121F;
+  border-color: var(--webapi);
+  font-weight: 700;
+}
+
+/* ============================================================ layout */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 450px) 1fr;
+  gap: 18px;
+  margin-top: 20px;
+  align-items: start;
+}
+
+.model { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px }
+.span2 { grid-column: 1 / -1 }
+.stacked { margin-top: 14px }
+
+/* Side-by-side panels carry titles of different lengths. A floor on the header
+   keeps their bodies starting on the same line instead of stepping. */
+.model .card h2 { min-height: 50px }
+
+@media (max-width: 1000px) { .layout { grid-template-columns: 1fr } }
+@media (max-width: 700px) { .model { grid-template-columns: 1fr } }
+
+/* ============================================================ cards */
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px }
+
+.card h2 {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .04em;
+  margin: 0;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-dim);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.card h2 .count { font-family: var(--font-mono); font-size: 11px; color: var(--ink-dim) }
+.body { padding: 10px 12px }
+
+/* ============================================================ editor */
+
+textarea {
+  width: 100%;
+  height: 290px;
+  resize: vertical;
+  background: #0B1220;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+textarea:focus { outline: 2px solid var(--webapi); outline-offset: 1px }
+
+
+.codeview {
+  margin: 0;
+  height: 290px;
+  overflow: auto;
+  background: #0B1220;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+.codeview .row { display: flex; white-space: pre; padding-right: 10px }
+
+.codeview .n {
+  flex: none;
+  width: 38px;
+  text-align: right;
+  padding-right: 10px;
+  color: #3F5379;
+  user-select: none;
+  border-right: 1px solid rgba(42, 58, 92, .7);
+  margin-right: 10px;
+}
+
+/* warm: ran during this step. hot: where the step stopped. */
+.codeview .row.warm { background: rgba(167, 139, 250, .10) }
+.codeview .row.warm .n { color: var(--micro) }
+.codeview .row.hot { background: rgba(56, 189, 248, .18); box-shadow: inset 3px 0 0 var(--webapi) }
+.codeview .row.hot .n { color: var(--webapi); font-weight: 700 }
+
+/* ============================================================ controls */
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center }
+
+button {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+
+button:hover:not(:disabled) { background: #24334F; border-color: #3B5280 }
+button:disabled { opacity: .4; cursor: not-allowed }
+button:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px }
+button.primary { background: var(--webapi); color: #05121F; border-color: var(--webapi); font-weight: 700 }
+button.primary:hover:not(:disabled) { background: #6FD0FB }
+
+select {
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  max-width: 100%;
+}
+
+label.speed { display: flex; align-items: center; gap: 7px; color: var(--ink-dim); font-size: 12px }
+input[type=range] { width: 92px; accent-color: var(--webapi) }
+
+/* ============================================================ phase bar */
+
+.phase {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.phase .tick { color: var(--ink-dim); flex: none }
+.phase[data-lane=macro] { border-left-color: var(--task) }
+.phase[data-lane=micro] { border-left-color: var(--micro) }
+.phase[data-lane=web] { border-left-color: var(--webapi) }
+.phase[data-lane=render] { border-left-color: var(--ok) }
+.phase[data-lane=sleep] { border-left-color: var(--ink-dim) }
+
+/* ============================================================ lane panels */
+
+.slot { min-height: 74px; display: flex; flex-direction: column; gap: 6px }
+.empty { color: #4E6086; font-family: var(--font-mono); font-size: 11.5px; padding: 6px 2px }
+
+.item {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.45;
+  padding: 6px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.item .tag { flex: none; font-weight: 700; opacity: .9 }
+.item .meta { color: var(--ink-dim); font-size: 10.5px }
+
+/* Each panel declares its colour once, and it is the same colour the legend
+   shows for that lane. Everything below derives from --lane, so the legend and
+   the panels cannot drift apart. */
+.lane-stack { --lane: var(--stack) }
+.lane-web { --lane: var(--webapi) }
+.lane-micro { --lane: var(--micro) }
+.lane-macro { --lane: var(--task) }
+.lane-heap { --lane: var(--heapc) }
+
+.lane { border-color: color-mix(in srgb, var(--lane) 34%, var(--line)) }
+
+.lane h2 {
+  color: var(--lane);
+  border-bottom-color: color-mix(in srgb, var(--lane) 34%, var(--line));
+  background: color-mix(in srgb, var(--lane) 7%, transparent);
+  border-radius: 9px 9px 0 0;
+}
+
+.lane h2 .count {
+  color: var(--lane);
+  background: color-mix(in srgb, var(--lane) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lane) 32%, transparent);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.lane .item {
+  border-color: color-mix(in srgb, var(--lane) 42%, transparent);
+  background: color-mix(in srgb, var(--lane) 9%, var(--panel-2));
+}
+
+.lane .item .tag { color: var(--lane) }
+
+/* Frames render bottom-up, the way a call stack grows. */
+.stack-frames { display: flex; flex-direction: column-reverse; gap: 6px }
+
+/* ============================================================ console + trace */
+
+.console {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  max-height: 190px;
+  overflow: auto;
+  padding: 4px 2px;
+}
+
+.console div { border-bottom: 1px dashed rgba(42, 58, 92, .6); padding: 2px 0 }
+.console .no-rule { border-bottom: 0 }
+.console .err { color: var(--stack) }
+.console .ord { color: var(--ink-dim); margin-right: 9px }
+
+.trace {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  max-height: 210px;
+  overflow: auto;
+  line-height: 1.75;
+}
+
+.trace div { padding: 1px 0; color: var(--ink-dim) }
+.trace b { color: var(--ink); font-weight: 500 }
+.trace .macro b { color: var(--task) }
+.trace .micro b { color: var(--micro) }
+.trace .web b { color: var(--webapi) }
+.trace .render b { color: var(--ok) }
+
+/* ============================================================ legend + note */
+
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; font-size: 11.5px; color: var(--ink-dim) }
+.legend span { display: flex; align-items: center; gap: 6px }
+.dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block }
+
+.note { color: var(--ink-dim); font-size: 12px; line-height: 1.6; margin-top: 14px; max-width: 78ch }
+.note code {
+  font-family: var(--font-mono);
+  color: var(--ink);
+  background: var(--panel-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+}

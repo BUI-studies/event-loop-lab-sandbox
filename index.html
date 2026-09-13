@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <title>Event Loop Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap" />
+</head>
+
+<body>
+  <div class="wrap">
+
+    <header>
+      <div class="langs">
+        <button id="lang-en" aria-pressed="false">English</button>
+        <button id="lang-uk" aria-pressed="true">Українська</button>
+      </div>
+      <h1 id="t-title">Event Loop Lab</h1>
+      <p id="t-sub"></p>
+    </header>
+
+    <div class="layout">
+      <div class="editor">
+
+        <div class="card">
+          <h2 id="t-yourcode"></h2>
+          <div class="body">
+            <textarea id="code" spellcheck="false"></textarea>
+            <pre class="codeview" id="codeview" hidden></pre>
+            <div class="controls">
+              <select id="preset"></select>
+              <button class="primary" id="load"></button>
+            </div>
+            <div class="controls">
+              <button id="step" disabled></button>
+              <button id="play" disabled></button>
+              <button id="finish" disabled></button>
+              <button id="edit" disabled></button>
+              <button id="reset"></button>
+              <label class="speed">
+                <span id="t-pace"></span>
+                <input type="range" id="speed" min="60" max="1400" value="940" />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="phase" id="phase" data-lane="sleep">
+          <span class="tick" id="tick">t=0ms</span>
+          <span class="msg" id="phasemsg"></span>
+        </div>
+
+        <div class="card stacked">
+          <h2><span id="t-console"></span> <span class="count" id="consolecount"></span></h2>
+          <div class="body">
+            <div class="console" id="console"></div>
+          </div>
+        </div>
+
+        <div class="card stacked">
+          <h2 id="t-trace"></h2>
+          <div class="body">
+            <div class="trace" id="trace"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="model">
+        <div class="card lane lane-heap span2">
+          <h2><span id="t-heap"></span> <span class="count" id="c-heap">0</span></h2>
+          <div class="body">
+            <div class="slot" id="heap"></div>
+          </div>
+        </div>
+        <div class="card lane lane-stack">
+          <h2><span id="t-stack"></span> <span class="count" id="c-stack">0</span></h2>
+          <div class="body">
+            <div class="slot stack-frames" id="stack"></div>
+          </div>
+        </div>
+        <div class="card lane lane-web">
+          <h2><span id="t-web"></span> <span class="count" id="c-web">0</span></h2>
+          <div class="body">
+            <div class="slot" id="web"></div>
+          </div>
+        </div>
+        <div class="card lane lane-micro">
+          <h2><span id="t-micro"></span> <span class="count" id="c-micro">0</span></h2>
+          <div class="body">
+            <div class="slot" id="micro"></div>
+          </div>
+        </div>
+        <div class="card lane lane-macro">
+          <h2><span id="t-macro"></span> <span class="count" id="c-macro">0</span></h2>
+          <div class="body">
+            <div class="slot" id="macro"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend" id="legend"></div>
+    <p class="note" id="t-note"></p>
+
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>
