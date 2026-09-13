@@ -12,18 +12,14 @@
 
 ### Навіщо це
 
-Event Loop зазвичай пояснюють схемою на дошці: ось стек, ось черга, ось стрілочки.
-Схема не бреше, але й не показує головного: **у якому саме порядку** і **в який
-момент** усе це відбувається з вашим власним кодом.
+Event Loop зазвичай пояснюють схемою на дошці: ось стек, ось черга, ось стрілочки, все кудись от сюди гуляє.
+Окрім очевидної нестачі візуалізації, такий підхід ще й ніяк не дає можливості скіки-хош разів покрутити це на власному коді.
 
-Тут ви пишете JavaScript, завантажуєте його в цикл і проганяєте **по одній
-атомарній дії за крок**. Стек викликів, черга microtask, черга task, таблиця
-Web API і heap оновлюються у вас на очах. Таймери, проміси та `fetch` підмінені
-видимими версіями самих себе, тож кожне додавання і зняття з черги можна
-показати пальцем.
+Саме для цього і написана дана пісочниця. Тут ви пишете JavaScript, завантажуєте його в цикл і проганяєте **по одній атомарній дії за крок**. 
 
-Три речі, які найчастіше розуміють неправильно і які лабораторія робить
-очевидними:
+Стек викликів, черга microtask, черга task, таблиця Web API і heap оновлюються у вас на очах. Таймери, проміси, `fetch` та `async/await` підмінені видимими версіями самих себе, тож кожне додавання і зняття з черги можна понюхати, помацати, побачити і покрутити в різні боки.
+
+Три речі, які пісочниця робить очевидними:
 
 1. **Черга microtask спорожнюється повністю** перед наступною task. Навіть якщо
    microtask породить ще тисячу microtask, усі вони виконаються раніше за
@@ -31,11 +27,7 @@ Web API і heap оновлюються у вас на очах. Таймери, 
 2. **`await` не блокує потік.** Кадр функції залишає стек, а призупинений стан
    лишається в heap. Потік у цей час **вільний**, а не заблокований.
 3. **Порожні черги не означають зупинку.** Коли виконувати нічого, потік спить
-   при 0% CPU, поки Web API не розбудить його. Це не spin loop.
-
-Дві мови інтерфейсу, українська за замовчуванням. Вибір зберігається в
-localStorage, а перемикання **не перезапускає цикл**: воно переназиває навіть ті
-елементи, що вже лежать у чергах.
+   при 0% CPU, поки Web API не розбудить його.
 
 ### Як запустити
 
@@ -65,27 +57,25 @@ pnpm preview      # віддати зібраний dist
 Головне правило одне, і з нього випливає все інше:
 
 > **`engine` ніколи не імпортує `ui` і не знає про DOM.**
-> Він віддає описи повідомлень `{ key, params }`, а `ui` перекладає їх у момент
-> відмальовування. Саме тому перемикання мови посеред виконання переназиває
-> елементи, що вже стоять у чергах.
+> Він віддає описи повідомлень `{ key, params }`, а `ui` перекладає їх у момент відмальовування. Саме тому перемикання мови посеред виконання переназиває елементи, що вже стоять у чергах.
 
 ```
 src/
-  main.ts              точка складання: css, кеш елементів, контролер
-  presets.ts           сім готових прикладів
+  main.ts              головний скрипт файл, "вхідна точка"
+  presets.ts           mock семи готових прикладів коду
   style.css            один файл, токени кольорів угорі
 
   i18n/
     en.ts              джерело істини для ключів
-    uk.ts              Record<TranslationKey, string>, типізований проти en.ts
+    uk.ts              Record<TranslationKey, string>, типізований за прикладом en.ts
     index.ts           Msg, Text, createTranslator()
 
-  engine/              без DOM, без рядків перекладу, без імпортів з ui
-    types.ts           форми, які відмальовує ui
+  engine/              все що стосується рушія дублікату EventLoop-у на сторінці
+    types.ts           
     world.ts           увесь мутабельний стан симуляції + createWorld()
-    format.ts          чисті хелпери показу значень і URL
+    format.ts          хелпери показу значень і URL
     vm-promise.ts      VPromise: справжній стан, значення, черга реакцій
-    async-driver.ts    проганяє переписану async-функцію, по одному await
+    async-driver.ts    проганяє переписану async-функцію, по одному await за раз
     web-apis.ts        таймери, fetch, rAF, queueMicrotask, console
     transform.ts       парсинг acorn, переписування async, мітки рядків
     loop.ts            сам цикл, генератор
@@ -94,148 +84,91 @@ src/
     dom.ts             кеш елементів і хелпери HTML
     render.ts          єдине місце, куди пишеться DOM
     controller.ts      load, step, play, до простою, edit, reset, мова
-    preferences.ts     запамʼятана мова, із захистом від вимкненого сховища
+    preferences.ts     вибрана мова, та інші конфігурації
 ```
 
-**`World` замість глобальних змінних.** Один обʼєкт тримає годинник, стек, обидві
-черги, таблицю Web API, heap і вивід. `createWorld()` будує новий, тому Reset це
-один рядок, а не п'ятнадцять.
+**`World` замість глобальних змінних.** Один обʼєкт тримає годинник, стек, обидві черги, таблицю Web API, heap і вивід.
 
-**Фабрики, привʼязані до світу.** `createPromiseClass(world)`,
-`createWebApis(world, VPromise)`, `createAsyncDriver(world, VPromise)`. Кожна
-замикає `world` один раз, тож виклики лишаються чистими і ніхто не тягнеться до
-глобальної змінної.
+**`createWorld()`** будує новий, тому Reset це один рядок, а не п'ятнадцять.
+
+**Фабрики, привʼязані до світу.** `createPromiseClass(world)`, `createWebApis(world, VPromise)`, `createAsyncDriver(world, VPromise)`. Кожна замикає `world` один раз, тож виклики лишаються чистими і ніхто не тягнеться до глобальної змінної.
 
 ### Як це працює
 
-**Цикл це генератор.** Один `yield` на одну атомарну дію, і саме це робить
-можливою кнопку Крок. Сам цикл лишається дурним: він знімає елементи з масивів і
-викликає їх, і ніколи не дізнається, що таке проміс.
+- **Цикл це генератор.** Один `yield` на одну атомарну дію, і саме це робить можливою кнопку "Крок". Сам цикл лишається "тупим": він знімає елементи з масивів і викликає їх, ніколи не маючи навіть шансу дізнатись що таке Promise.
 
-**Проміси переписані, а не обгорнуті.** У `VPromise` є справжній стан, значення і
-черга реакцій. Поки він pending, видно, як росте лічильник реакцій; коли він
-врегульовується, видно, як черга очікування перетворюється на N microtask одразу.
+- **Проміси переписані, а не обгорнуті.** У `VPromise` є справжній стан, значення і черга реакцій. Поки він pending, видно, як росте лічильник реакцій; коли він врегульовується, видно, як черга очікування перетворюється на N microtask одразу.
 
-**`async`/`await` переписується до запуску.** Код парситься acorn, кожна
-async-функція стає генератором, кожен `await` стає `yield` під керуванням нашого
-власного планувальника. Рідний `await` призупинявся б на черзі microtask
-справжнього рушія, якої лабораторія не бачить і не може крокувати, тож пауза була
-б переказана, а не показана. З переписуванням пауза справжня: кадр залишає стек,
-призупинений запис лишається в heap разом із локальними змінними, а замикання
-продовження чекає всередині проміса, який ви очікували.
+- **`async`/`await` переписується до запуску.** acorn парсить код, кожна async-функція стає генератором, кожен `await` стає `yield` під керівництвом кастомного планувальника. Нативний `await` призупинявся б на черзі microtask справжнього рушія, якого пісочниця не бачить і не контролює. З переписуванням пауза справжня: кадр залишає стек, призупинений запис лишається в heap разом із локальними змінними, а замикання продовження чекає всередині проміса, який ви очікували.
 
-Оскільки це парсер, а не регулярка, переписування працює на всіх формах
-(оголошення, function expression, стрілкова з тілом і без, метод обʼєкта,
-top-level `await`), не чіпає слово `await` усередині рядків і коментарів, а мітки
-`__line(n)` для підсвітки потрапляють лише на справжні інструкції. Усе, що
-переписати не вдається, повідомляється з номером рядка, а не падає мовчки.
+- Оскільки це парсер, а не регулярка, переписування працює на всіх формах (оголошення, function expression, стрілкова з тілом і без, метод обʼєкта, top-level `await`), не чіпає слово `await` усередині рядків і коментарів, а мітки `__line(n)` для підсвітки потрапляють лише на справжні інструкції. Усе, що
+переписати не вдається, трейситься з номером рядка.
 
-Коли всі черги порожні, цикл перескакує віртуальний годинник до найближчого
-запису Web API замість того, щоб крутитися вхолосту. Це `os.block_until_event()`
-зроблений видимим. Простій це не блокування, і саме це показує пресет
-«Потік вільний під час fetch»: таймер на 50мс виконує свій колбек на головному
-потоці, поки запит на 342мс усе ще лежить у панелі Web API.
+- Коли всі черги порожні, цикл мотає віртуальний годинник до найближчого запису Web API замість того, щоб крутитися вхолосту. Це по суті `os.block_until_event()` зроблений видимим.
 
-Rejection, який ніхто не зловив, друкується як `Uncaught (in promise) ...`, як у
-справжній консолі. Перевірка відбувається після спорожнення черги microtask, тому
-`.catch()`, доданий пізніше в тому ж проході, усе ще рахується.
+- Rejection, який ніхто не зловив, логується як `Uncaught (in promise) ...`, як у справжній консолі. Перевірка відбувається після спорожнення черги microtask, тому `.catch()`, доданий пізніше в тому ж проході, усе ще рахується.
 
 ### Робота з кодом
 
-Load бере те, що в редакторі. **Редагувати** повертає до текстового поля,
-зберігаючи ваш код. **Скинути** повертає і відновлює обраний пресет, відкидаючи
+**"Завантажити в цикл"** - бере те, що в редакторі, і передає в чергу для виконання в цикл. 
+
+**"Редагувати"** - повертає можливість редагування коду.
+
+**"Скинути"** - повертає і відновлює обраний пресет, відкидаючи
 правки.
 
-Щойно ви напишете щось, чого немає в пресеті, список перемикається на
-**Власний код**, а скасування правок повертає назву пресета. Коли обрано власний
-код, відновлювати нема чого, тож Скинути поводиться як Редагувати.
+Щойно в редакторі написане щось, чого немає в пресеті, список перемикається на **"Власний код"**. Коли обрано "Власний код", відновлювати нема чого, тож "Скинути" поводиться як "Редагувати".
 
 ### Свідомі спрощення
 
-Це навчальна модель, а не реалізація специфікації. Варто знати, перш ніж
-посилатися на неї в суперечці:
+Це навчальна модель, а не реалізація специфікації. Тому допущені наступні спрощення:
 
-- Крок рендеру йде після спорожнення microtask і перед сном, тож колбек
-  `requestAnimationFrame` спрацьовує раніше за `setTimeout(fn, 0)`. Справжній
-  браузер привʼязує rAF до оновлення екрана і зазвичай виконує таймер першим.
-- `async`-методи в класі це єдина форма, яку не переписано. Обгортка-вираз не
-  може стати на місце визначення методу. Завантаження такого коду повідомляє
-  номер рядка і зупиняється.
-- `fetch` підроблений: `/users` повертає трьох користувачів, `/dossier/<id>`
-  один запис, а затримка це хеш від URL, тож пресет завжди дає однаковий трейс.
-- Годинник стрибає, а не цокає, тож `setInterval` іде рівно так швидко, як ви
-  крокуєте. Він повторюється, доки хтось не викличе `clearInterval`, як і
-  справжній; «До простою» зупиняється після 4000 дій, щоб вкладка не зависла.
-- `.catch()`, доданий після перевірки на необроблені rejection, не скасує вже
-  надрукований рядок. Справжній рушій викликав би `rejectionhandled`.
-
-### Публікація
-
-Збірка статична і самодостатня, а `vite.config.ts` ставить `base: './'`, тож
-`dist` працює з будь-якого шляху.
-
-| Спосіб | Як |
-| --- | --- |
-| Netlify Drop | `pnpm build`, перетягнути `dist` на app.netlify.com/drop |
-| GitHub Pages | запушити репозиторій, Settings, Pages, збірка з Actions або публікація `dist` |
-| Cloudflare Pages | підключити репозиторій, збірка `pnpm build`, вихід `dist` |
-| surge.sh | `pnpm build && npx surge dist` |
-
-Шрифти тягнуться з Google Fonts. На будь-якому реальному хостингу все гаразд;
-якщо відкрити зібраний файл без мережі, підставляться системні шрифти, і це
-змінить вигляд, але не розкладку.
+- Крок рендеру йде після спорожнення microtask і перед "сном", тож колбек `requestAnimationFrame` спрацьовує раніше за `setTimeout(fn, 0)`. Справжній браузер привʼязує rAF до оновлення екрана і зазвичай виконує таймер першим.
+- `async`-методи в класі це єдина фіча, яку не переписано. Вираз-обгортка не може стати на місце визначення методу. Завантаження трейситься з номером рядка.
+- `fetch` підроблений з mock даними: `/users` повертає трьох заготовлених користувачів, `/dossier/<id>` - повертає один запис. А затримка - це хеш від URL, тож пресет завжди дає однаковий трейс.
+- Годинник "стрибає", а не "цокає", тож `setInterval` іде рівно так швидко, як ви крокуєте. Він повторюється, доки хтось не викличе `clearInterval`, як і справжній.
+- «До простою» зупиняється після 4000 дій, щоб вкладка не зависла.
+- `.catch()`, доданий після перевірки на необроблені `rejection`, не скасує вже надрукований рядок. Справжній рушій викликав би `rejectionhandled`.
 
 ---
 
 ## English
 
-### Why this exists
+### What This Exists
 
-The event loop is usually explained with a whiteboard diagram: here is the stack,
-here is the queue, here are the arrows. The diagram is not wrong, but it hides the
-part that matters: **in what order** and **at what moment** any of it happens to
-your own code.
+The Event Loop is usually explained with a blackboard diagram: here is the Stack, here is the Queue, here are the arrows moving everything around. Besides the obvious lack of visual feedback, this approach gives you zero opportunity to step through your own code as many times as you like.
 
-Here you write JavaScript, load it into the loop, and step **one atomic action at
-a time**. The call stack, microtask queue, task queue, Web API table and heap
-update in front of you. Timers, promises and `fetch` are replaced with visible
-versions of themselves, so every push and pop is something you can point at.
+That is precisely why this sandbox was built. Here, you write JavaScript, load it into the loop, and execute it **one atomic action per step**.
 
-The three things people most often get wrong, made obvious:
+The Call Stack, Microtask Queue, Task Queue, Web API table, and Heap update right before your eyes. Timers, Promises, `fetch`, and `async/await` are replaced with fully observable versions of themselves, so every enqueue and dequeue operation can be inspected, felt, visualized, and manipulated from all angles.
 
-1. **The microtask queue drains completely** before the next task. Even if a
-   microtask queues a thousand more, all of them run before `setTimeout(fn, 0)`.
-2. **`await` does not block the thread.** The frame leaves the stack and the
-   paused state stays on the heap. The thread is **free**, not blocked.
-3. **Empty queues do not mean a halt.** With nothing to run the thread sleeps at
-   0% CPU until a Web API wakes it. It is not a spin loop.
+Three key insights this sandbox makes clear:
 
-Two interface languages, Ukrainian by default. The choice is kept in localStorage
-and switching **does not restart the loop**: it relabels even the items already
-sitting in the queues.
+1. **The Microtask Queue drains completely** before the next task. Even if a microtask spawns a thousand more microtasks, all of them will execute before `setTimeout(fn, 0)`.
+2. **`await` does not block the thread.** The function frame leaves the call stack, while the suspended state remains in the Heap. The thread is **idle** during this time, not blocked.
+3. **Empty queues do not mean execution has stopped.** When there is nothing to execute, the thread sleeps at 0% CPU utilization until a Web API wakes it up.
 
-### Running it
+### How to Run
 
 ```sh
 pnpm install
 pnpm dev          # http://localhost:5173
 pnpm typecheck    # tsc --noEmit
-pnpm build        # typecheck + production bundle into dist
-pnpm preview      # serve the built dist
+pnpm build        # typecheck + production build in dist
+pnpm preview      # serve built dist
 ```
 
-### Stack
+### Tech Stack
 
-| What | Why |
+| Component | Purpose |
 | --- | --- |
-| TypeScript 6, `strict` | Types as documentation. `uk` is typed against `en`, so a missing translation key is a build error |
-| Vite 8 | Dev server and build. No plugins, a seven-line config |
-| acorn 8 + acorn-walk | A JavaScript parser **at runtime**. It is what rewrites `async`/`await` before the code runs |
+| TypeScript 6, `strict` | Types as documentation. `uk` is strictly typed against `en`, making any missing translation key a compile-time error |
+| Vite 8 | Dev server and bundler. Zero plugins, seven-line config |
+| acorn 8 + acorn-walk | **Runtime** JavaScript parser. It rewrites `async`/`await` prior to execution |
 | pnpm | Package manager |
-| Vanilla DOM, one CSS file | No framework, no state library, no CSS-in-JS |
+| Vanilla DOM, single CSS file | Framework-free, zero state libraries, zero CSS-in-JS |
 
-No test dependency: verification is `typecheck`, the build, and stepping the
-presets in a browser. The bundle is about 48 KB gzip, most of it the parser.
+Zero test dependencies: verification relies entirely on `typecheck`, builds, and preset validation in the browser. The total gzipped bundle size is around 48 KB, most of which is the parser itself.
 
 ### Architecture
 
@@ -274,88 +207,41 @@ src/
     preferences.ts     the remembered language, guarded against blocked storage
 ```
 
-**`World` instead of globals.** One object holds the clock, the stack, both
-queues, the Web API table, the heap and the output. `createWorld()` builds a
-fresh one, so Reset is a single line rather than fifteen.
+**`World` instead of globals.** One object holds the clock, the stack, both queues, the Web API table, the heap and the output. `createWorld()` builds a fresh one, so Reset is a single line rather than fifteen.
 
-**World-bound factories.** `createPromiseClass(world)`,
-`createWebApis(world, VPromise)`, `createAsyncDriver(world, VPromise)`. Each
-closes over `world` once, so call sites stay clean and nothing reaches for a
-global.
+**World-bound factories.** `createPromiseClass(world)`, `createWebApis(world, VPromise)`, `createAsyncDriver(world, VPromise)`. Each closes over `world` once, so call sites stay clean and nothing reaches for a global.
 
-### How it works
+### How It Works
 
-**The loop is a generator.** One `yield` per atomic action is what makes the Step
-button possible. The loop itself stays dumb: it shifts things out of arrays and
-calls them, and never learns what a promise is.
+- **The loop is a generator.** Each `yield` corresponds to a single atomic action, which enables the "Step" control. The loop itself remains intentionally simple: it dequeues items from arrays and invokes them, having no internal concept of what a Promise is.
 
-**Promises are reimplemented, not wrapped.** `VPromise` has real state, value and
-a waiting room of reactions. While it is pending you watch the reaction count
-climb; when it settles you watch the waiting room become N microtasks at once.
+- **Promises are rewritten, not wrapped.** `VPromise` tracks actual state, value, and reaction queues. While pending, its reaction counter can be observed growing; when settled, the waiting queue is visibly transformed into N microtasks simultaneously.
 
-**`async`/`await` is rewritten before it runs.** The source is parsed with acorn,
-every async function becomes a generator, and every `await` becomes a `yield`
-driven by our own scheduler. Native `await` would suspend on the real engine's
-microtask queue, which this lab cannot see or step, so the pause would be narrated
-rather than shown. With the rewrite the pause is real: the frame leaves the call
-stack, a paused record stays on the heap with its locals, and a resume closure
-parks inside the awaited promise.
+- **`async`/`await` is transpiled prior to execution.** acorn parses the AST, transforming every async function into a generator and every `await` into a `yield` managed by a custom scheduler. A native `await` would suspend on the host engine's microtask queue, which the sandbox cannot inspect or control. With AST rewriting, suspension is fully explicit: the frame exits the stack, the suspended entry remains on the heap with its local scope, and the continuation closure waits inside the awaited promise.
 
-Because it is a parser and not a regex, the rewrite works on every async form
-(declaration, function expression, arrow with a block or a concise body, object
-method, top-level `await`), it leaves the word `await` alone inside strings and
-comments, and the `__line(n)` markers that drive highlighting land on real
-statements only. Anything it cannot handle is reported on the offending line
-instead of failing quietly.
+- Because this uses an AST parser rather than regular expressions, the transformation handles all syntactic variants (declarations, function expressions, concise/block arrow functions, object methods, top-level `await`). It avoids matching `await` inside strings or comments, and inserts `__line(n)` execution markers strictly onto executable statements. Any unhandled constructs trigger a trace with line-number context.
 
-When every queue is empty the loop jumps the virtual clock forward to the next
-pending Web API entry instead of spinning. That is `os.block_until_event()` made
-visible. Idle is not the same as blocked, which is what the "thread is free
-during a fetch" preset shows: a 50ms timer runs its callback on the main thread
-while a 342ms request is still sitting in the Web API panel.
+- When all queues are exhausted, the loop advances the virtual clock directly to the nearest Web API scheduled time instead of spinning. This effectively visualizes an `os.block_until_event()` pattern.
 
-A rejection nobody caught is printed as `Uncaught (in promise) ...`, the way a
-real console does. The sweep runs once the microtask queue drains, so a `.catch()`
-attached later in the same pass still counts.
+- Unhandled rejections are logged as `Uncaught (in promise) ...`, mimicking standard browser console behavior. Evaluation occurs after the microtask queue has drained, allowing `.catch()` handlers added later within the same execution frame to register correctly.
 
-### Working with code
+### Workflow Controls
 
-Load commits what is in the editor. **Edit** goes back to the textarea keeping
-your code. **Reset** goes back and restores the selected preset, discarding edits.
+**"Load into loop"** - parses current editor content and enqueues it for event loop execution.
 
-Typing anything a preset does not say switches the dropdown to **Your own code**,
-and undoing back to the original text switches it back. With your own code
-selected there is nothing to restore, so Reset behaves like Edit.
+**"Edit"** - re-enables text editor focus for code modifications.
 
-### Deliberate simplifications
+**"Reset"** - restores the currently selected preset, discarding local changes.
 
-It is a teaching model, not a spec implementation. Worth knowing before you use it
-to settle an argument:
+Modifying editor content away from a preset automatically updates the preset selector to **"Custom Code"**. When active, restore operations are disabled, making "Reset" function identically to "Edit".
 
-- The render step runs after the microtask drain and before the loop sleeps, so a
-  `requestAnimationFrame` callback fires ahead of a `setTimeout(fn, 0)`. A real
-  browser ties rAF to the display refresh and usually runs the timer first.
-- `async` methods on a class are the one form not rewritten. An expression wrapper
-  cannot stand in for a method definition. Loading one reports the line and stops.
-- `fetch` is mocked: `/users` returns three users, `/dossier/<id>` returns one
-  record, and latency is a hash of the URL so a preset always traces the same.
-- The clock jumps rather than ticks, so a `setInterval` runs as fast as you step
-  it. It repeats until something calls `clearInterval`, exactly like the real
-  thing; Run to idle stops after 4000 actions so a runaway loop cannot hang the tab.
-- A `.catch()` attached after the unhandled-rejection sweep does not retract an
-  already-printed line. A real engine would fire `rejectionhandled`.
+### Intentional Simplifications
 
-### Publishing
+This project is an educational model rather than a spec-compliant runtime. As such, the following deliberate simplifications exist:
 
-The build is static and self-contained, and `vite.config.ts` sets `base: './'` so
-`dist` works from any path.
-
-| Route | How |
-| --- | --- |
-| Netlify Drop | `pnpm build`, drag `dist` onto app.netlify.com/drop |
-| GitHub Pages | push the repo, Settings, Pages, build from Actions or publish `dist` |
-| Cloudflare Pages | connect the repo, build `pnpm build`, output `dist` |
-| surge.sh | `pnpm build && npx surge dist` |
-
-Fonts load from Google Fonts. Any real host is fine; opening the built file
-offline falls back to system fonts, which changes the look but not the layout.
+- Rendering steps execute immediately after microtask queue exhaustion and prior to idle states, causing `requestAnimationFrame` callbacks to fire before `setTimeout(fn, 0)`. Real browser engines tie rAF to frame refresh timing and typically process timer tasks first.
+- Class `async` methods are currently excluded from AST rewriting, as wrapper expressions cannot cleanly replace method definitions. Loading these outputs a trace with line information.
+- `fetch` uses mock data: `/users` returns three mocked user entities, while `/dossier/` returns a single record. Network latency is calculated via URL hashing to ensure deterministic traces across preset runs.
+- The clock operates on discrete step increments rather than real-time ticks, so `setInterval` steps synchronously alongside user execution. It repeats until explicitly cleared via `clearInterval`, keeping native semantics.
+- "Run to idle" enforces a hard cap at 4,000 operations to prevent browser tab lockup.
+- Attaching `.catch()` after unhandled rejection evaluation will not retract previously emitted log lines, unlike engines supporting `rejectionhandled` events.
