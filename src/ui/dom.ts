@@ -65,6 +65,8 @@ export const queryElements = () => ({
     macro: el('c-macro'),
     heap: el('c-heap'),
   },
+
+  credits: el('credits')
 });
 
 export type Elements = ReturnType<typeof queryElements>;

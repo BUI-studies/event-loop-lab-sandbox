@@ -240,6 +240,7 @@ export const createController = (els: Elements): void => {
     els.code.value = preset.code;
   };
 
+  els.credits.textContent = `© ${new Date().getFullYear()} ${els.credits.textContent}`
   els.load.addEventListener('click', load);
   els.edit.addEventListener('click', returnToEditor);
   els.reset.addEventListener('click', reset);

@@ -310,3 +310,9 @@ input[type=range] { width: 92px; accent-color: var(--webapi) }
   padding: 1px 5px;
   border-radius: 4px;
 }
+
+.credits {
+  font-family: var(--font-mono);
+  text-align: right;
+  color: var(--ink-dim);
+}
